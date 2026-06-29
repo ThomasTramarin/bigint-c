@@ -19,9 +19,7 @@ The library implements integer using a base-$2^{32}$ (word-based) representation
 Each integer is stored as an array of 32-bit unsigned integers (called limbs), where each limb represents a digit in base $2^{32}$.
 
 The value of a bigint is defined as:
-$$
-value = sign \cdot \sum_{i=0}^{size-1} l_i \cdot 2^{32i}
-$$
+$value = sign \cdot \sum_{i=0}^{size-1} l_i \cdot 2^{32i}$
 
 Where:
 - $l_i$ is the $i$-th limb (a 32-bit unsigned integer)
@@ -54,7 +52,7 @@ A bigint is in canonical form if:
   - $sign = 0$  
 - Sign normalization rule:  
   - if $value = 0$, then $sign = 0$  
-  - otherwise $sign \in \{+1, -1\}$  
+  - otherwise $sign \in$ {+1, -1}  
 
 ## API Design
 

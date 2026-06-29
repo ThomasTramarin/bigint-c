@@ -14,7 +14,7 @@ This project is primarily educational and aims to explore low-level implementati
 ## Implementation Design
 
 ### Number Representation
-The library implements integer using a base-$2^{32}$ (word-based) representation.
+The library implements integer using a base $2^{32}$ (word-based) representation.
 
 Each integer is stored as an array of 32-bit unsigned integers (called limbs), where each limb represents a digit in base $2^{32}$.
 

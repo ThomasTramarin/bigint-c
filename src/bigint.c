@@ -145,7 +145,7 @@ void bint_assign_i64(bint *b, int64_t value) {
 }
 
 // --- Compare ---
-int bint_cmp_abs(const bint *a, const bint *b) {
+static int bint__cmp_abs(const bint *a, const bint *b) {
   if (a->size > b->size)
     return 1;
 
@@ -263,7 +263,7 @@ void bint_add(bint *dst, const bint *a, const bint *b) {
     bint__add_abs(dst, a, b);
     dst->sign = a->sign;
   } else {
-    int cmp = bint_cmp_abs(a, b);
+    int cmp = bint__cmp_abs(a, b);
 
     if (cmp == 0) {
       dst->sign = 0;

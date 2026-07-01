@@ -18,14 +18,14 @@ void bint_set_oom_handler(bint_oom_fn fn) {
 }
 
 // --- Heap Memory Management ---
-static void *bint_malloc(size_t size) {
+static void *bint__malloc(size_t size) {
   void *p = malloc(size);
   if (!p)
     oom_handler();
   return p;
 }
 
-static void *bint_realloc(void *p, size_t size) {
+static void *bint__realloc(void *p, size_t size) {
   void *q = realloc(p, size);
   if (!q)
     oom_handler();
@@ -33,17 +33,17 @@ static void *bint_realloc(void *p, size_t size) {
   return q;
 }
 
-static void bint_reserve_limbs(bint *b, size_t new_cap) {
+static void bint__reserve_limbs(bint *b, size_t new_cap) {
 
   if (new_cap <= b->cap)
     return;
 
-  b->limbs = bint_realloc(b->limbs, sizeof(uint32_t) * new_cap);
+  b->limbs = bint__realloc(b->limbs, sizeof(uint32_t) * new_cap);
   b->cap = new_cap;
 }
 
 // --- Utils ---
-static void bint_normalize(bint *b) {
+static void bint__normalize(bint *b) {
   // remove leading zeros
   while (b->size > 1 && b->limbs[b->size - 1] == 0)
     b->size--;
@@ -55,11 +55,11 @@ static void bint_normalize(bint *b) {
 
 // --- Lifecycle ---
 bint *bint_new(void) {
-  bint *b = bint_malloc(sizeof(bint));
+  bint *b = bint__malloc(sizeof(bint));
 
   memset(b, 0, sizeof(*b));
 
-  bint_reserve_limbs(b, 1);
+  bint__reserve_limbs(b, 1);
   b->size = 1;
   b->limbs[0] = 0;
 
@@ -92,14 +92,14 @@ void bint_assign(bint *dst, const bint *src) {
   if (dst == src)
     return;
 
-  bint_reserve_limbs(dst, src->cap);
+  bint__reserve_limbs(dst, src->cap);
 
   dst->size = src->size;
   dst->sign = src->sign;
 
   memcpy(dst->limbs, src->limbs, src->size * sizeof(uint32_t));
 
-  bint_normalize(dst);
+  bint__normalize(dst);
 }
 
 void bint_assign_i64(bint *b, int64_t value) {
@@ -109,7 +109,7 @@ void bint_assign_i64(bint *b, int64_t value) {
   b->sign = 0;
   b->size = 0;
 
-  bint_reserve_limbs(b, 2);
+  bint__reserve_limbs(b, 2);
 
   // zero in canonical form
   if (value == 0) {
@@ -173,9 +173,9 @@ int bint_cmp_abs(const bint *a, const bint *b) {
 // --- Operations ---
 
 // dst = |a| + |b|. The sign is set by the caller
-static void bint_add_abs(bint *dst, const bint *a, const bint *b) {
+static void bint__add_abs(bint *dst, const bint *a, const bint *b) {
   size_t max = (a->size > b->size ? a->size : b->size);
-  bint_reserve_limbs(dst, max + 1); // reserve one more byte (carry)
+  bint__reserve_limbs(dst, max + 1); // reserve one more byte (carry)
 
   uint64_t carry = 0;
   uint64_t sum = 0;
@@ -198,13 +198,13 @@ static void bint_add_abs(bint *dst, const bint *a, const bint *b) {
 
   dst->size = i;
 
-  bint_normalize(dst);
+  bint__normalize(dst);
 }
 
 // dst = |a| - |b|. The sign is set by the caller (|a| must be greater than |b|)
-static void bint_sub_abs(bint *dst, const bint *a, const bint *b) {
+static void bint__sub_abs(bint *dst, const bint *a, const bint *b) {
 
-  bint_reserve_limbs(dst, a->size);
+  bint__reserve_limbs(dst, a->size);
 
   uint64_t borrow = 0;
   uint64_t sub = 0;
@@ -229,7 +229,7 @@ static void bint_sub_abs(bint *dst, const bint *a, const bint *b) {
 
   dst->size = a->size;
 
-  bint_normalize(dst);
+  bint__normalize(dst);
 }
 
 void bint_add(bint *dst, const bint *a, const bint *b) {
@@ -260,20 +260,20 @@ void bint_add(bint *dst, const bint *a, const bint *b) {
   }
 
   if (a->sign == b->sign) {
-    bint_add_abs(dst, a, b);
+    bint__add_abs(dst, a, b);
     dst->sign = a->sign;
   } else {
     int cmp = bint_cmp_abs(a, b);
 
     if (cmp == 0) {
       dst->sign = 0;
-      bint_sub_abs(dst, a, b);
+      bint__sub_abs(dst, a, b);
     } else if (cmp == 1) {
       dst->sign = a->sign;
-      bint_sub_abs(dst, a, b);
+      bint__sub_abs(dst, a, b);
     } else if (cmp == -1) {
       dst->sign = b->sign;
-      bint_sub_abs(dst, b, a);
+      bint__sub_abs(dst, b, a);
     }
   }
 

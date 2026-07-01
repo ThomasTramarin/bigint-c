@@ -1,4 +1,3 @@
-#include "bigint.h"
 #include "bigint_internal.h"
 #include <assert.h>
 #include <stdint.h>
@@ -12,20 +11,20 @@ static void default_oom(void) {
   abort();
 }
 
-bint_oom_fn oom_handler = default_oom;
+static bint_oom_fn oom_handler = default_oom;
 void bint_set_oom_handler(bint_oom_fn fn) {
   oom_handler = fn ? fn : default_oom; // if NULL, set the default handler
 }
 
 // --- Heap Memory Management ---
-static void *bint__malloc(size_t size) {
+void *bint__malloc(size_t size) {
   void *p = malloc(size);
   if (!p)
     oom_handler();
   return p;
 }
 
-static void *bint__realloc(void *p, size_t size) {
+void *bint__realloc(void *p, size_t size) {
   void *q = realloc(p, size);
   if (!q)
     oom_handler();
@@ -33,7 +32,7 @@ static void *bint__realloc(void *p, size_t size) {
   return q;
 }
 
-static void bint__reserve_limbs(bint *b, size_t new_cap) {
+void bint__reserve_limbs(bint *b, size_t new_cap) {
 
   if (new_cap <= b->cap)
     return;
@@ -43,7 +42,7 @@ static void bint__reserve_limbs(bint *b, size_t new_cap) {
 }
 
 // --- Utils ---
-static void bint__normalize(bint *b) {
+void bint__normalize(bint *b) {
   // remove leading zeros
   while (b->size > 1 && b->limbs[b->size - 1] == 0)
     b->size--;
@@ -145,7 +144,7 @@ void bint_assign_i64(bint *b, int64_t value) {
 }
 
 // --- Compare ---
-static int bint__cmp_abs(const bint *a, const bint *b) {
+int bint__cmp_abs(const bint *a, const bint *b) {
   if (a->size > b->size)
     return 1;
 
@@ -173,7 +172,7 @@ static int bint__cmp_abs(const bint *a, const bint *b) {
 // --- Operations ---
 
 // dst = |a| + |b|. The sign is set by the caller
-static void bint__add_abs(bint *dst, const bint *a, const bint *b) {
+void bint__add_abs(bint *dst, const bint *a, const bint *b) {
   size_t max = (a->size > b->size ? a->size : b->size);
   bint__reserve_limbs(dst, max + 1); // reserve one more byte (carry)
 
@@ -202,7 +201,7 @@ static void bint__add_abs(bint *dst, const bint *a, const bint *b) {
 }
 
 // dst = |a| - |b|. The sign is set by the caller (|a| must be greater than |b|)
-static void bint__sub_abs(bint *dst, const bint *a, const bint *b) {
+void bint__sub_abs(bint *dst, const bint *a, const bint *b) {
 
   bint__reserve_limbs(dst, a->size);
 

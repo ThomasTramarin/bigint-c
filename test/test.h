@@ -1,5 +1,4 @@
 #pragma once
-#include "../src/bigint.h"
 #include "../src/bigint_internal.h"
 #include <stdio.h>
 

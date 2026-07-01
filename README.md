@@ -4,7 +4,7 @@
 - [Overview](#overview)  
 - [Implementation Design](#implementation-design)  
 - [API Design](#api-design)  
-- [API Reference](#api-reference)  
+- [Public API Reference](#public-api-reference)  
 
 ## Overview
 bint is a C library for arbitrary-precision signed integers.
@@ -85,7 +85,7 @@ static void default_oom(void) {
 
 The user is free to rewrite this handler function (e.g. to perform clean-up operations) by registering it using `bint_set_oom_handler`.
 
-## API Reference
+## Public API Reference
 
 ### `bint_new`
 ```c
@@ -109,6 +109,17 @@ Releases all memory associated with a `bint`.
 - After calling this function, the pointer becomes invalid.
 - The caller should set the pointer to `NULL` after freeing to avoid dangling references.
 
+### `bint_clone`
+```c
+bint *bint_clone(const bint *src);
+```
+
+Creates a new heap-allocated `bint` that is an exact copy of `src`.
+- Allocates a new `bint` on the heap.
+- Copies the full value of `src`.
+- The returned object is independed from the source.
+- The caller is responsible for freeubt it using `bint_free`.
+
 ### `bint_set_oom_handler`
 ```c
 typedef void (*bint_oom_fn)(void);
@@ -120,6 +131,18 @@ Registers a `bint_oom_fn` function that is invoked whenever the library fails to
 
 > The handler must not return. Returning from the handler results in undefined behavior. 
 
+### `bint_assign`
+```c
+void bint_assign(bint *dst, const bint *src)
+```
+
+Copies the value of `src` to `dst`.
+- Overwrites the current value stored in `dst`.
+- Automatically adjust capacity if needed.
+- Performs a deep copy of the internal limb array.
+- After assignment, `dst` is independent from `src`.
+
+
 ### `bint_assign_i64`
 ```c
 void bint_assign_i64(bint *b, int64_t value);
@@ -130,3 +153,22 @@ Assigns a signed 64-bit integer value to a `bint`.
 - Overwrites the current value stored in `b`.
 - Automatically resizes internal storage if required.
 - May reuse previously allocated memory if capacity is sufficient.
+
+### `bint_add`
+```c
+void bint_add(bint *dst, const bint *a, const bint *b);
+```
+
+Computes the sum: `dst = a + b`.
+- Supports signed integers.
+- Handles all sign combinations (`+/+`, `+/-`, `-/+`, `-/-`)
+- Safe for aliasing (`dst == a` or `dst == b`)
+
+### `bint_add`
+```c
+void bint_sub(bint *dst, const bint *a, const bint *b);
+```
+Computes the difference: `dst = a - b`.
+- Supports signed integers.
+- Internally implemented with `bint_add` (equivalent to `dst = a + (-b)`).
+- Safe for aliasing (`dst == a` or `dst == b`).

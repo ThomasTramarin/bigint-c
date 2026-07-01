@@ -1,8 +1,10 @@
 #include "bigint.h"
 #include "bigint_internal.h"
+#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 // --- OOM Handler ---
 static void default_oom(void) {
@@ -36,16 +38,28 @@ static void bint_reserve_limbs(bint *b, size_t new_cap) {
   if (new_cap <= b->cap)
     return;
 
-  b->cap = new_cap;
   b->limbs = bint_realloc(b->limbs, sizeof(uint32_t) * new_cap);
+  b->cap = new_cap;
+}
+
+// --- Utils ---
+static void bint_normalize(bint *b) {
+  // remove leading zeros
+  while (b->size > 1 && b->limbs[b->size - 1] == 0)
+    b->size--;
+
+  // normalize sign
+  if (b->size == 1 && b->limbs[0] == 0)
+    b->sign = 0;
 }
 
 // --- Lifecycle ---
 bint *bint_new(void) {
   bint *b = bint_malloc(sizeof(bint));
 
+  memset(b, 0, sizeof(*b));
+
   bint_reserve_limbs(b, 1);
-  b->sign = 0;
   b->size = 1;
   b->limbs[0] = 0;
 
@@ -53,7 +67,7 @@ bint *bint_new(void) {
 }
 
 void bint_free(bint *b) {
-
+  // NULL safety
   if (!b)
     return;
 
@@ -63,7 +77,31 @@ void bint_free(bint *b) {
   free(b);
 }
 
+bint *bint_clone(const bint *src) {
+  bint *b = bint_new();
+
+  bint_assign(b, src);
+
+  return b;
+}
+
 // --- Assignments ---
+
+void bint_assign(bint *dst, const bint *src) {
+
+  if (dst == src)
+    return;
+
+  bint_reserve_limbs(dst, src->cap);
+
+  dst->size = src->size;
+  dst->sign = src->sign;
+
+  memcpy(dst->limbs, src->limbs, src->size * sizeof(uint32_t));
+
+  bint_normalize(dst);
+}
+
 void bint_assign_i64(bint *b, int64_t value) {
   if (!b)
     return;
@@ -104,4 +142,157 @@ void bint_assign_i64(bint *b, int64_t value) {
   b->size = i;
 
   return;
+}
+
+// --- Compare ---
+int bint_cmp_abs(const bint *a, const bint *b) {
+  if (a->size > b->size)
+    return 1;
+
+  if (b->size > a->size)
+    return -1;
+
+  // equal size
+  for (int i = (int)a->size - 1; i >= 0; i--) {
+    uint32_t ai = a->limbs[i];
+    uint32_t bi = b->limbs[i];
+
+    if (ai == bi)
+      continue;
+
+    if (ai > bi)
+      return 1;
+
+    if (bi > ai)
+      return -1;
+  }
+
+  return 0;
+}
+
+// --- Operations ---
+
+// dst = |a| + |b|. The sign is set by the caller
+static void bint_add_abs(bint *dst, const bint *a, const bint *b) {
+  size_t max = (a->size > b->size ? a->size : b->size);
+  bint_reserve_limbs(dst, max + 1); // reserve one more byte (carry)
+
+  uint64_t carry = 0;
+  uint64_t sum = 0;
+
+  size_t i;
+  for (i = 0; i < max; i++) {
+    uint32_t ai = (i < a->size) ? a->limbs[i] : 0;
+    uint32_t bi = (i < b->size) ? b->limbs[i] : 0;
+
+    sum = (uint64_t)ai + bi + carry;
+
+    dst->limbs[i] = (uint32_t)sum;
+
+    carry = sum >> 32;
+  }
+
+  if (carry) {
+    dst->limbs[i++] = (uint32_t)carry;
+  }
+
+  dst->size = i;
+
+  bint_normalize(dst);
+}
+
+// dst = |a| - |b|. The sign is set by the caller (|a| must be greater than |b|)
+static void bint_sub_abs(bint *dst, const bint *a, const bint *b) {
+
+  bint_reserve_limbs(dst, a->size);
+
+  uint64_t borrow = 0;
+  uint64_t sub = 0;
+
+  size_t i;
+  for (i = 0; i < a->size; i++) {
+
+    uint32_t ai = a->limbs[i];
+    uint32_t bi = (i < b->size) ? b->limbs[i] : 0;
+
+    sub = ai - bi - borrow;
+
+    if (ai < bi + borrow) {
+      borrow = 1;
+      sub += (uint64_t)1 << 32;
+    } else {
+      borrow = 0;
+    }
+
+    dst->limbs[i] = (uint32_t)sub;
+  }
+
+  dst->size = a->size;
+
+  bint_normalize(dst);
+}
+
+void bint_add(bint *dst, const bint *a, const bint *b) {
+
+  assert(dst && a && b);
+
+  bint *a_cpy = NULL;
+  bint *b_cpy = NULL;
+
+  if (dst == a) {
+    a_cpy = bint_clone(a);
+    a = a_cpy;
+  }
+  if (dst == b) {
+    b_cpy = bint_clone(b);
+    b = b_cpy;
+  }
+  // after this line, a and b are not dst
+
+  if (a->sign == 0) {
+    bint_assign(dst, b);
+    goto end;
+  }
+
+  if (b->sign == 0) {
+    bint_assign(dst, a);
+    goto end;
+  }
+
+  if (a->sign == b->sign) {
+    bint_add_abs(dst, a, b);
+    dst->sign = a->sign;
+  } else {
+    int cmp = bint_cmp_abs(a, b);
+
+    if (cmp == 0) {
+      dst->sign = 0;
+      bint_sub_abs(dst, a, b);
+    } else if (cmp == 1) {
+      dst->sign = a->sign;
+      bint_sub_abs(dst, a, b);
+    } else if (cmp == -1) {
+      dst->sign = b->sign;
+      bint_sub_abs(dst, b, a);
+    }
+  }
+
+end:
+  bint_free(a_cpy);
+  bint_free(b_cpy);
+}
+
+void bint_sub(bint *dst, const bint *a, const bint *b) {
+  assert(dst && a && b);
+
+  bint *b_cpy = NULL;
+  if (b->sign != 0) {
+    b_cpy = bint_clone(b);
+    b_cpy->sign = -b_cpy->sign;
+    b = b_cpy;
+  }
+
+  bint_add(dst, a, b);
+
+  bint_free(b_cpy);
 }

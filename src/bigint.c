@@ -295,3 +295,11 @@ void bint_sub(bint *dst, const bint *a, const bint *b) {
 
   bint_free(b_cpy);
 }
+
+void bint_abs(bint *dst, const bint *src) {
+  if (dst != src)
+    bint_assign(dst, src);
+
+  if (dst->sign == -1)
+    dst->sign = 1;
+}

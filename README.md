@@ -172,3 +172,14 @@ Computes the difference: `dst = a - b`.
 - Supports signed integers.
 - Internally implemented with `bint_add` (equivalent to `dst = a + (-b)`).
 - Safe for aliasing (`dst == a` or `dst == b`).
+
+### `bint_abs`
+```c
+void bint_abs(bint *dst, const bint *src);
+```
+
+Computes the absolute value of `src` and stores the result in `dst`.
+- If `src` is positive or zero, `dst` becomes a copy of `src`.
+- If `src` is negative, the sign is flipped to positive.
+- Does not modify `src`.
+- Safe for `dst == src` (in-place operation supported).

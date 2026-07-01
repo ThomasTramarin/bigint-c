@@ -21,3 +21,4 @@ void bint_assign_i64(bint *b, int64_t value);
 // --- Operations ---
 void bint_add(bint *dst, const bint *a, const bint *b);
 void bint_sub(bint *dst, const bint *a, const bint *b);
+void bint_abs(bint *dst, const bint *src);

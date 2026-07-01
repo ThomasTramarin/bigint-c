@@ -1,5 +1,6 @@
 
 #include "test.h"
+#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -283,6 +284,42 @@ void test_subtraction(void) {
   bint_free(c);
 }
 
+void test_abs(void) {
+  bint *a = bint_new();
+  bint *r = bint_new();
+
+  // zero
+  bint_assign_i64(a, 0);
+  bint_abs(r, a);
+  bint_assert(r->sign == 0);
+  bint_assert(r->size == 1);
+  bint_assert(r->limbs[0] == 0);
+
+  // positive (should remain unchanged)
+  bint_assign_i64(a, 123);
+  bint_abs(r, a);
+  bint_assert(r->sign == 1);
+  bint_assert(r->size == 1);
+  bint_assert(r->limbs[0] == 123);
+
+  // negative (should flip sign only)
+  bint_assign_i64(a, -123);
+  bint_abs(r, a);
+  bint_assert(r->sign == 1);
+  bint_assert(r->size == 1);
+  bint_assert(r->limbs[0] == 123);
+
+  // dst == a
+  bint_assign_i64(a, -123);
+  bint_abs(a, a);
+  bint_assert(a->sign == 1);
+  bint_assert(a->size == 1);
+  bint_assert(a->limbs[0] == 123);
+
+  bint_free(a);
+  bint_free(r);
+}
+
 int main() {
 
   // initialization
@@ -332,6 +369,7 @@ int main() {
 
   test_addition();
   test_subtraction();
+  test_abs();
 
   printf("[END] Test (total: %d, passed: %d)\n", test_current, test_passed);
 
